@@ -38,12 +38,11 @@ namespace IgcRestApi
                 options.AddDefaultPolicy(
                     builder =>
                     {
-                        builder.WithOrigins("http://tracemap.volavoile.net",
-                                            "https://tracemap.volavoile.net",
-                                            "http://heatmap.volavoile.net",
-                                            "https://heatmap.volavoile.net",
-                                            "http://localhost:51363",
-                                            "https://localhost:44355");
+                        builder.SetIsOriginAllowedToAllowWildcardSubdomains()
+                        .WithOrigins("http://*.volavoile.net",
+                                        "https://*.volavoile.net",
+                                        "http://localhost:51363",
+                                        "https://localhost:44355");
                     });
             });
 
@@ -144,7 +143,7 @@ namespace IgcRestApi
             }
             app.ConfigureExceptionHandler();    // Use Extensions/ExceptionMiddleWareExtensions.cs
 
-            app.UseHttpsRedirection();
+            //app.UseHttpsRedirection();
 
             // Enable middleware to serve generated Swagger as a JSON endpoint.
             app.UseSwagger();
