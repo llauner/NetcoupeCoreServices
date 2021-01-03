@@ -1,0 +1,9 @@
+runtime: aspnetcore
+env: flex
+service: igcrestapi
+
+resources:
+  cpu: 1
+
+manual_scaling:
+  instances: 1
