@@ -13,4 +13,8 @@
     <PackageReference Include="Google.Cloud.Functions.Hosting" Version="1.0.0-beta04" />
     <PackageReference Include="Google.Cloud.Storage.V1" Version="3.4.0-beta01" />
   </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Helper\" />
+  </ItemGroup>
 </Project>

@@ -10,6 +10,7 @@ namespace TraceAggregator.Dto
 
     public class Properties
     {
+        public string flightId { get; set; }
     }
 
     public class Feature

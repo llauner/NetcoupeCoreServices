@@ -3,8 +3,10 @@ using Microsoft.Extensions.Logging;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Text;
 using System.Threading.Tasks;
 using TraceAggregator.Services.Interfaces;
+using TraceAggregator.Extension;
 
 namespace TraceAggregator.Services
 {
@@ -44,12 +46,33 @@ namespace TraceAggregator.Services
             await _storageClient.UploadObjectAsync(_configuration.TraceAggregatorBucketName, objectName, "text/plain", inStream);
         }
 
+        public async Task UploadToBucketAsync(string objectName, string inString)
+        {
+            await UploadToBucketAsync(objectName, inString.ToStream());
+        }
+
+
         public async Task<MemoryStream> DownloadObjectFromBucketAsync(string objectName)
         {
             var memoryStream = new MemoryStream();
             await _storageClient.DownloadObjectAsync(_configuration.TraceAggregatorBucketName, objectName, memoryStream);
 
             return memoryStream;
+        }
+
+
+        /// <summary>
+        /// DownloadObjectFromBucketAsStringAsync
+        /// </summary>
+        /// <param name="objectName"></param>
+        /// <returns></returns>
+        public async Task<string> DownloadObjectFromBucketAsStringAsync(string objectName)
+        {
+            var memoryStream = new MemoryStream();
+            await _storageClient.DownloadObjectAsync(_configuration.TraceAggregatorBucketName, objectName, memoryStream);
+            memoryStream.Seek(0, SeekOrigin.Begin);
+
+            return memoryStream.ReadAsString();
         }
 
 

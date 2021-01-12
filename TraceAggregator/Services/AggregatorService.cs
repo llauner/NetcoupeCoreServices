@@ -7,6 +7,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using TraceAggregator.Dto;
+using TraceAggregator.Helper;
 using TraceAggregator.Services.Interfaces;
 
 namespace TraceAggregator.Services
@@ -20,6 +21,7 @@ namespace TraceAggregator.Services
 
         private static readonly string YearlyTracksFilename = $"{DateTime.Now.Year}-tracks.geojson";
         private static readonly string YearlyTracksZipFilename = $"{DateTime.Now.Year}-tracks.geojson.zip";
+        private static readonly string YearlyTtrackMetadataFilename = $"{DateTime.Now.Year}-tracks-metadata.json";
 
         public const short DefaultCoordinatesReductionFactor = 50;
 
@@ -63,22 +65,40 @@ namespace TraceAggregator.Services
             {
                 // --- Get yearly geojson
                 _logger.LogInformation($"Downloading zip file from bucket: {_configurationService.TraceAggregatorBucketName} / {YearlyTracksZipFilename}");
+
+                // --- Get yearly geojson
                 GeoJsonDto yearGeojson = null;
+                List<string> yearFlightIdList = null;   // FlightIds in the yearly aggregation
                 try
                 {
                     var yearlyGeojsonFile = await _zipStorageService.DownloadZipedFileAsStringAsync(YearlyTracksZipFilename);
-                    yearGeojson = JsonConvert.DeserializeObject<GeoJsonDto>(yearlyGeojsonFile);
+                    yearGeojson = JsonHelper.Deserialize<GeoJsonDto>(yearlyGeojsonFile);
+                    yearFlightIdList = yearGeojson.features.Select(f => f.properties.flightId).ToList();
                 }
                 catch (Google.GoogleApiException e)
                 {
                     _logger.LogWarning($"[AggregatorService]: {e.Message}");
                     yearGeojson = new GeoJsonFeatureCollectionDto();
+                    yearFlightIdList = new List<string>();
                 }
-               
+
+                // -- Get yearly metadata
+                TracksMetadataDto metadataDto = null;
+                try
+                {
+                    var metadatajson = await _storageService.DownloadObjectFromBucketAsStringAsync(YearlyTtrackMetadataFilename);
+                    metadataDto = JsonHelper.Deserialize<TracksMetadataDto>(metadatajson);
+                }
+                catch (Google.GoogleApiException e)
+                {
+                    _logger.LogWarning($"[AggregatorService]: {e.Message}");
+                    metadataDto = new TracksMetadataDto();
+                }
 
                 // --- Process files ---
                 var currentFileCount = 0;
                 var totalFileCount = backlogFilesList.Count;
+                var addedFeatureCount = 0;
 
                 foreach (var filename in backlogFilesList)
                 {
@@ -87,24 +107,53 @@ namespace TraceAggregator.Services
                     currentFileCount++;
                     
                     var tracksForDayAsJson = await _zipStorageService.DownloadZipedFileAsStringAsync(filename);
-                    var dayGeojson = JsonConvert.DeserializeObject<GeoJsonDto>(tracksForDayAsJson);
+                    var dayGeojson = JsonHelper.Deserialize<GeoJsonDto>(tracksForDayAsJson);
 
-                    //--- Reduce number of features
-                    ReduceGeojsonFeatures(ref dayGeojson, appliedReductionFactor);
-                    yearGeojson.features.AddRange(dayGeojson.features);     // Add the features to the yearly aggregation
+                    // Get rid of features that are already present in the yearly aggregation
+                    var newFeatures = dayGeojson.features.Where(f => !yearFlightIdList.Contains(f.properties.flightId)).ToList();
 
+                    if (newFeatures.Count>0)
+                    {
+                        _logger.LogInformation($"Adding new feature to the aggregated file. New features count= {newFeatures.Count}");
+                        dayGeojson.features = newFeatures;
+                        addedFeatureCount += newFeatures.Count;
+
+                        //--- Reduce number of features
+                        ReduceGeojsonFeatures(ref dayGeojson, appliedReductionFactor);
+                        yearGeojson.features.AddRange(dayGeojson.features);                     // Add the features to the yearly aggregation
+                    }
                     // --- Delete the processed file from the backlog
                     if (!keepBacklog)
                     {
                         await _storageService.DeleteFileAsync(filename);
                     }
+
                 }
 
-                // --- Store yearly geojson file with new feature added
-                _logger.LogInformation($"Storing new yearly tracemap into bucket ...");
-                var yearlyGeojsonText = JsonConvert.SerializeObject(yearGeojson);
-                await _zipStorageService.UploadStringToZipFileAsync(yearlyGeojsonText, YearlyTracksFilename, YearlyTracksZipFilename);   // Store into a GCP bucket: geojson
+                if (addedFeatureCount >0)
+                {
+                    // --- Update metadata ---
+                    metadataDto.ScriptEndTime = DateTime.UtcNow;
+                    metadataDto.TargetDate = DateTime.UtcNow;
+                    metadataDto.FlightsCount += addedFeatureCount;
+                    metadataDto.ProcessedFlightsCount += addedFeatureCount;
 
+                    // --- Store yearly geojson file with new feature added ---
+                    _logger.LogInformation("Storing new yearly tracemap into bucket ...");
+                    var yearlyGeojsonText = JsonHelper.Serialize(yearGeojson);
+                    //await _storageService.DeleteFileAsync(YearlyTracksZipFilename);
+                    await _zipStorageService.UploadStringToZipFileAsync(yearlyGeojsonText, YearlyTracksFilename, YearlyTracksZipFilename);   // Store into a GCP bucket: geojson
+
+                    // --- Store updated metadata ---
+                    _logger.LogInformation("Storing updated metadata file into bucket ...");
+                    var metadataText = JsonHelper.Serialize(metadataDto);
+                    //await _storageService.DeleteFileAsync(YearlyTtrackMetadataFilename);
+                    await _storageService.UploadToBucketAsync(YearlyTtrackMetadataFilename, metadataText);
+                }
+                else
+                {
+                    _logger.LogInformation("No new feature to add.");
+                }
                 _logger.LogInformation("######### [AggregatorService] ######### Done !");
 
             }
