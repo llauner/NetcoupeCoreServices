@@ -141,13 +141,11 @@ namespace TraceAggregator.Services
                     // --- Store yearly geojson file with new feature added ---
                     _logger.LogInformation("Storing new yearly tracemap into bucket ...");
                     var yearlyGeojsonText = JsonHelper.Serialize(yearGeojson);
-                    //await _storageService.DeleteFileAsync(YearlyTracksZipFilename);
                     await _zipStorageService.UploadStringToZipFileAsync(yearlyGeojsonText, YearlyTracksFilename, YearlyTracksZipFilename);   // Store into a GCP bucket: geojson
 
                     // --- Store updated metadata ---
                     _logger.LogInformation("Storing updated metadata file into bucket ...");
                     var metadataText = JsonHelper.Serialize(metadataDto);
-                    //await _storageService.DeleteFileAsync(YearlyTtrackMetadataFilename);
                     await _storageService.UploadToBucketAsync(YearlyTtrackMetadataFilename, metadataText);
                 }
                 else
