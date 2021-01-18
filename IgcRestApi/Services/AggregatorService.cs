@@ -39,6 +39,7 @@ namespace IgcRestApi.Services
         }
 
 
+
         /// <summary>
         /// RunAsync
         /// Entry point for the igc extraction and storage
@@ -51,9 +52,7 @@ namespace IgcRestApi.Services
             // Remove files already processed from list
             if (!string.IsNullOrEmpty(lastProcessedFilename))
             {
-                filesList.RemoveAll(o =>
-                    int.Parse(Path.GetFileNameWithoutExtension(o)) <=
-                    int.Parse(Path.GetFileNameWithoutExtension(lastProcessedFilename)));
+                filesList.RemoveAll(o => isFileAlreadyProcessed(lastProcessedFilename, o));
             }
 
 
@@ -150,6 +149,31 @@ namespace IgcRestApi.Services
             }
 
             return flightDto;
+        }
+
+        /// <summary>
+        /// isFileAlreadyProcessed
+        /// </summary>
+        /// <param name="lastProcessedFilename"></param>
+        /// <param name="candidateFilename"></param>
+        /// <returns>True if the candidate file has already been processed</returns>
+        private bool isFileAlreadyProcessed(string lastProcessedFilename, string candidateFilename)
+        {
+            if (int.TryParse(Path.GetFileNameWithoutExtension(lastProcessedFilename), out var lastProcessedFileNumber))
+            {
+                if (int.TryParse(Path.GetFileNameWithoutExtension(candidateFilename), out var candidateFileNumber))
+                {
+                    return candidateFileNumber <= lastProcessedFileNumber;
+                }
+                else
+                {
+                    return true;        //  The candidate file is not a number: discard it
+                }
+            }
+            else
+            {
+                throw new CoreApiException(HttpStatusCode.InternalServerError, $"The last processed file name is not following Netcoupe naming (not a number): {lastProcessedFilename}");
+            }
         }
 
 
