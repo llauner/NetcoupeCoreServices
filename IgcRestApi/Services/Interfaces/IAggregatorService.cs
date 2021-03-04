@@ -12,6 +12,6 @@ namespace IgcRestApi.Services.Interfaces
         /// </summary>
         Task<IList<string>> RunAsync(int? maxFilesTpProcess = null);
 
-        Task<IgcFlightDto> DeleteFlightAsync(int flightNumber);
+        Task<IgcFlightDto> DeleteFlightAsync(int flightNumber, bool dryRun=false);
     }
 }

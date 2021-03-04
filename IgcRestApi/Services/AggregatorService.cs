@@ -133,19 +133,45 @@ namespace IgcRestApi.Services
         /// DeleteFlightAsync
         /// </summary>
         /// <param name="flightNumber"></param>
-        public async Task<IgcFlightDto> DeleteFlightAsync(int flightNumber)
+        /// <param name="dryRun"></param>
+        public async Task<IgcFlightDto> DeleteFlightAsync(int flightNumber, bool dryRun = false)
         {
-            var filename = _netcoupeService.GetIgcFileNameById(flightNumber);
             IgcFlightDto flightDto = null;
 
-            try
+            if (!dryRun)
             {
-                flightDto = await _storageService.DeleteFileAsync(filename);
-                flightDto.Id = flightNumber;
+                var filename = _netcoupeService.GetIgcFileNameById(flightNumber);
+                
+
+                try
+                {
+                    flightDto = await _storageService.DeleteFileAsync(filename);
+                    flightDto.Id = flightNumber;
+                }
+                catch (FileNotFoundException e)
+                {
+                    throw new CoreApiException(HttpStatusCode.NotFound, e.Message);
+                }
             }
-            catch (FileNotFoundException e)
+            // --- Dry Run : used for testing purposese
+            else
             {
-                throw new CoreApiException(HttpStatusCode.NotFound, e.Message);
+                var filename = "Dry Run:  " + flightNumber;
+                if (flightNumber %2==0)
+                {
+                    flightDto = new IgcFlightDto()
+                    {
+                        Name = filename,
+                        Status = FlightStatus.DELETED
+                    };
+                }
+                else
+                {
+                    var message = $"[DeleteFlightAsync] - DryRun - Could not find file in GCP bucket: {filename}";
+                    _logger.LogDebug(message);
+                    throw new CoreApiException(HttpStatusCode.NotFound, message);
+                }
+               
             }
 
             return flightDto;

@@ -62,15 +62,16 @@ namespace IgcRestApi.Controllers
         /// Deletes a file from the GCP bucket storage
         /// </summary>
         /// <param name="flightId">The Netcoupe flightId</param>
+        /// <param name="dryRun">Set to true to make a dry run and return a predefined response</param>
         /// <returns></returns>
         /// <remarks>
         /// Authorization: Bearer {{token}}
         /// </remarks>
         [HttpDelete("flights/{flightId}")]
         [Authorize]
-        public async Task<IActionResult> DeleteFlightAsync(int flightId)
+        public async Task<IActionResult> DeleteFlightAsync(int flightId, [FromQuery(Name = "dryrun")] bool dryRun=false)
         {
-            var igcFlightDto = await _aggregatorService.DeleteFlightAsync(flightId);
+            var igcFlightDto = await _aggregatorService.DeleteFlightAsync(flightId, dryRun);
             var igcFlightModel = _dataConverter.Convert<IgcFlightModel>(igcFlightDto);
             return Ok(new ApiResponseModel(HttpStatusCode.OK, igcFlightModel));
         }
