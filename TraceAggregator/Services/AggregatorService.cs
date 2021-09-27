@@ -191,8 +191,11 @@ namespace TraceAggregator.Services
                 _logger.LogInformation($"Bakcup of file made: {filename} -> {backupFilename}");
             }
 
-            // --- Reduce ----
+            // --- Reduce Features ----
             ReduceGeojsonFeatures(ref targetGeojson, appliedReductionFactor);
+
+            // --- Crop to eliminate points outside of the bounding box ---
+            CropGeoJsonFeatures(ref targetGeojson);
 
             // --- Write result ---
             _logger.LogInformation($"Storing reduced file into bucket ...");
@@ -224,6 +227,45 @@ namespace TraceAggregator.Services
             _logger.LogInformation($"Reduced Coordinates: {totalReducedCoordinatesCount} = {totalInitialCoordinatesCount} / {reductionFactor}");
         }
 
+
+        private void CropGeoJsonFeatures(ref GeoJsonDto sourceGeojson)
+        {
+            //--- Process daily file: reduce the number of features
+            var totalInitialCoordinatesCount = 0;
+            var totalReducedCoordinatesCount = 0;
+            foreach (var f in sourceGeojson.features)
+            {
+                // Reduce the number of coordinates per feature
+                totalInitialCoordinatesCount += f.geometry.coordinates.Count;
+
+                var reducedCoordiantes = f.geometry.coordinates.Where((c, i) => IsInsideBoundingBox(c[0], c[1])).ToList();
+                f.geometry.coordinates = reducedCoordiantes;
+                totalReducedCoordinatesCount += reducedCoordiantes.Count;
+            }
+            _logger.LogInformation($"Reduced Coordinates: {totalReducedCoordinatesCount} = {totalInitialCoordinatesCount}");
+        }
+
+
+        /// <summary>
+        /// IsInsideBoundingBox
+        /// </summary>
+        /// <param name="lng"></param>
+        /// <param name="lat"></param>
+        /// <returns></returns>
+        private bool IsInsideBoundingBox(double lng, double lat)
+        {
+            var minX = -9.843750;
+            var minY = 38.856820;
+            var maxX = 10.107422;
+            var maxY = 51.371780;
+
+            if (lng < minX || lng > maxX || lat < minY || lat > maxY)
+            {
+                // We're outside the polygon!
+                return false;
+            }
+            return true;
+        }
 
     }
 

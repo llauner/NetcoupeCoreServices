@@ -19,8 +19,9 @@ namespace TraceAggregator.Tests
         public async Task RequestWritesMessage()
         {
             //string text = await ExecuteHttpGetRequestAsync("?reduce=true&factor=1.5&keepBacklog=true");
-            string text = await ExecuteHttpGetRequestAsync("");
-            Assert.AreEqual("[AggregatorService] Done !", text);
+            string text = await ExecuteHttpGetRequestAsync("?reduce=true&factor=1&keepBacklog=true&Xfilename=test.geojson.zip");
+            //string text = await ExecuteHttpGetRequestAsync("");
+            Assert.AreEqual("######### [AggregatorService] ######### Done !", text);
         }
     }
 }
