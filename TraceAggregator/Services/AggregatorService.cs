@@ -110,7 +110,9 @@ namespace TraceAggregator.Services
                     var dayGeojson = JsonHelper.Deserialize<GeoJsonDto>(tracksForDayAsJson);
 
                     // Get rid of features that are already present in the yearly aggregation
-                    var newFeatures = dayGeojson.features.Where(f => !yearFlightIdList.Contains(f.properties.flightId)).ToList();
+                    //var newFeatures = dayGeojson.features.Where(f => !yearFlightIdList.Contains(f.properties.flightId)).ToList();
+
+                    var newFeatures = dayGeojson.features;
 
                     if (newFeatures.Count>0)
                     {
@@ -121,6 +123,9 @@ namespace TraceAggregator.Services
                         //--- Reduce number of features
                         ReduceGeojsonFeatures(ref dayGeojson, appliedReductionFactor);
                         yearGeojson.features.AddRange(dayGeojson.features);                     // Add the features to the yearly aggregation
+
+                        // --- Crop to eliminate points outside of the bounding box ---
+                        CropGeoJsonFeatures(ref dayGeojson);
                     }
                     // --- Delete the processed file from the backlog
                     if (!keepBacklog)
@@ -242,7 +247,7 @@ namespace TraceAggregator.Services
                 f.geometry.coordinates = reducedCoordiantes;
                 totalReducedCoordinatesCount += reducedCoordiantes.Count;
             }
-            _logger.LogInformation($"Reduced Coordinates: {totalReducedCoordinatesCount} = {totalInitialCoordinatesCount}");
+            _logger.LogInformation($"Remove out of the box coordinates: {totalReducedCoordinatesCount} = {totalInitialCoordinatesCount}");
         }
 
 
